@@ -6,35 +6,29 @@ const cameraBtn = document.getElementById("camera");
 const cameraSelect = document.getElementById("cameras");
 const micSelect = document.getElementById("mics");
 
+const welcome = document.getElementById("welcome");
+const call = document.getElementById("call");
+
+call.hidden = true;
+
 let myStream;
 let muted = false;
 let cameraOff = false;
+let roomName;
 
 async function getCameras() {
   try {
     const devices = await navigator.mediaDevices.enumerateDevices();
     const cameras = devices.filter((device) => device.kind === "videoinput");
+    const currentCamera = myStream.getVideoTracks()[0];
     cameras.forEach((camera) => {
       const option = document.createElement("option");
       option.value = camera.deviceId;
       option.innerText = camera.label;
+      if (currentCamera.label == camera.label) {
+        option.selected = true;
+      }
       cameraSelect.append(option);
-    });
-  } catch (e) {
-    console.log(e);
-  }
-}
-
-async function getMics() {
-  try {
-    const devices = await navigator.mediaDevices.enumerateDevices();
-    const mics = devices.filter((device) => device.kind === "audioinput");
-    console.log("mics", mics);
-    mics.forEach((mic) => {
-      const option = document.createElement("option");
-      option.value = mic.deviceId;
-      option.innerText = mic.label;
-      micSelect.append(option);
     });
   } catch (e) {
     console.log(e);
@@ -56,14 +50,13 @@ async function getMedia(deviceId) {
       deviceId ? cameraConstrains : initialConstrains
     );
     myFace.srcObject = myStream;
-    await getCameras();
-    await getMics();
+    if (!deviceId) {
+      await getCameras();
+    }
   } catch (e) {
     console.log(e);
   }
 }
-
-getMedia();
 
 function handleMuteClick() {
   myStream
@@ -91,14 +84,35 @@ function handleCameraClick() {
 }
 
 async function handleCameraChange() {
-  console.log(cameraSelect.value);
-}
-
-async function handleMicChange() {
-  await getMedia(micSelect.value);
+  await getMedia(cameraSelect.value);
 }
 
 muteBtn.addEventListener("click", handleMuteClick);
 cameraBtn.addEventListener("click", handleCameraClick);
 cameraSelect.addEventListener("input", handleCameraChange);
-micSelect.addEventListener("input", handleMicChange);
+
+// Welcome Code
+
+welcomeForm = welcome.querySelector("form");
+
+function startMedia() {
+  welcome.hidden = true;
+  call.hidden = false;
+  getMedia();
+}
+
+function handleWelcomeSubmit(event) {
+  event.preventDefault();
+  const input = welcomeForm.querySelector("input");
+  socket.emit("join_room", input.value, startMedia);
+  roomName = input.value;
+  input.value = "";
+}
+
+welcomeForm.addEventListener("submit", handleWelcomeSubmit);
+
+// Socket Code
+
+socket.on("welcome", () => {
+  console.log("누군가 왔어!");
+});
